@@ -1,11 +1,11 @@
 use std::time::Instant;
 
-mod day09;
+mod day10;
 
 fn main() {
    let now = Instant::now();
 
-   day09::day09();
+   day10::day10();
 
    println!("Execution time: {:?}", Instant::now().checked_duration_since(now).unwrap());
 }
