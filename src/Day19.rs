@@ -1,130 +1,134 @@
 use std::fs;
 use std::collections::HashMap;
 use std::str::FromStr;
-use crate::day19::RuleType::{Char, Single, Double, TwoSingles, TwoDoubles, Triple};
+use crate::day19::RuleType::{Char, Single, Double, Triple, TwoRules};
 
 #[derive(Debug, Copy, Clone)]
-enum RuleType { Char, Single, Double, Triple, TwoSingles, TwoDoubles }
+enum RuleType { Char, Single, Double, Triple, TwoRules }
 
 #[derive(Debug, Copy, Clone)]
 struct Rule {
     kind: RuleType,
     c: char,
-    first: (i32, i32),
-    second: (i32, i32)
+    rule_indexes: (i32, i32, i32),
+    rules: Option<((i32, i32, i32), (i32, i32, i32))>
 }
 
 pub fn day19() {
     let contents = fs::read_to_string("Input/Day19.txt").expect("Couldn't read the file");
     let mut part1 = 0;
-    let  part2 = 0;
+    let mut part2 = 0;
 
     let mut rules = HashMap::new();
     let mut messages = vec![];
     for line in contents.lines() {
         let words: Vec<&str> = line.split(' ').collect();
         if words.len() > 1 {
-//          println!("{:?} {}", &words, words.len());
             let nr = i32::from_str(words[0].trim_end_matches(":")).unwrap();
             let rule;
             match words.len() {
                 2 => {
                     match i32::from_str(words[1]) {
                         Ok(num) => {
-                            rule = Rule {kind: Single, c: ' ', first: (num, -1), second: (-1, -1) };
+                            rule = make_index_rule(num, -1, -1);
                         }
                         Err(_) => {
-                            rule = Rule {kind: Char, c: words[1].trim_start_matches("\"").chars().next().unwrap(),
-                                first: (0, 0), second: (0, 0) };
+                            rule = Rule {kind: Char, rule_indexes: (-1, -1, -1), rules: None,
+                                c: words[1].trim_start_matches("\"").chars().next().unwrap()};
                         }
                     }
                 }
-                3 => {
-                    rule = Rule {kind: Double, c: ' ',
-                        first: (i32::from_str(words[1]).unwrap(), i32::from_str(words[2]).unwrap()),
-                        second: (-1, -1) };
-                }
+                3 => { rule = make_index_rule(i32::from_str(words[1]).unwrap(), i32::from_str(words[2]).unwrap(), -1); }
                 4 => {
                     if words[2] == "|" {
-                        rule = Rule {kind: TwoSingles, c: ' ',
-                            first: (i32::from_str(words[1]).unwrap(), -1),
-                            second: (i32::from_str(words[3]).unwrap(), -1) };
+                        rule = Rule {kind: TwoRules, c: ' ', rule_indexes: (-1, -1, -1), rules:
+                            Some(((i32::from_str(words[1]).unwrap(), -1, -1), (i32::from_str(words[3]).unwrap(), -1, -1)))};
                     } else {
-                        rule = Rule {kind: Triple, c: ' ',
-                            first: (i32::from_str(words[1]).unwrap(), i32::from_str(words[2]).unwrap()),
-                            second: (i32::from_str(words[3]).unwrap(), -1) };
+                        rule = make_index_rule(i32::from_str(words[1]).unwrap(), i32::from_str(words[2]).unwrap(),
+                                           i32::from_str(words[3]).unwrap());
                     }
                 }
                 6 => {
-                    rule = Rule {kind: TwoDoubles, c: ' ',
-                        first: (i32::from_str(words[1]).unwrap(), i32::from_str(words[2]).unwrap()),
-                        second: (i32::from_str(words[4]).unwrap(), i32::from_str(words[5]).unwrap()) };
+                    rule = Rule {kind: TwoRules, c: ' ', rule_indexes: (-1, -1, -1),
+                        rules: Some(((i32::from_str(words[1]).unwrap(), i32::from_str(words[2]).unwrap(), -1),
+                                     (i32::from_str(words[4]).unwrap(), i32::from_str(words[5]).unwrap(), -1)))};
                 }
                 _ => panic!("unrecognized rule {}", line)
             }
             rules.insert(nr, rule);
- //           println!("Rule {} {:?}", nr, rule);
+//            println!("Rule {} {:?}", nr, rule);
         } else {
             messages.push(words[0]);
         }
     }
-//    println!("{:?}", rules);
 
-    for message in messages {
+    // for message in &messages {
+    //     match matches_rule(*message, &rules[&0], &rules) {
+    //         None => {}
+    //         Some(length) => {
+    //             if length == message.len() {
+    //                 part1 += 1;
+    //             }
+    //         }
+    //     }
+    // }
+    println!("Part 1: {}", part1);
+
+    rules.remove(&8);
+    rules.insert(8, Rule {kind: RuleType::TwoRules, c: ' ', rule_indexes: (-1, -1, -1), rules: Some(((42, -1, -1), (42, 8, -1)))});
+    rules.remove(&11);
+    rules.insert(11, Rule {kind: RuleType::TwoRules, c: ' ', rule_indexes: (-1, -1, -1), rules: Some(((42, 31, -1), (42, 11, 31)))});
+
+    for message in &messages {
         match matches_rule(message, &rules[&0], &rules) {
             None => {}
             Some(length) => {
                 if length == message.len() {
-                    part1 += 1;
+                    part2 += 1;
                 }
             }
         }
     }
-    //8: 42 | 42 8
-    // 11: 42 31 | 42 11 31
-    //rules[8] = Rule { kind: RuleType::TwoDoubles, c: ' ', first: (42, -1), second: (42, 8) };
-    //rules[11] = Rule { kind: RuleType::TwoDoubles, c: ' ', first: (42, 31), second: (42, 8) };
 
-    println!("Part 1: {}", part1);
     println!("Part 2: {}", part2);
-}
-/*
-fn matches(message: &str, rules: &HashMap<i32, Rule>) -> bool {
-    if message.len() == 0 { return false; }
-    for rule in rules.values() {
-        match matches_rule(message, rule, rules) {
-            None => {}
-            Some(length) => {
-                if length == message.len() {
-                    return true;
-                }
-            }
-        }
+
+    for i in 0..50 {
+        if rules.contains_key(&i) { println!("{}: {:?}", i, rules[&i])}
     }
-    false
 }
-*/
+// 134 is too low
+
+fn make_index_rule(i0: i32, i1: i32, i2: i32) -> Rule {
+    if i1 < 0 {
+        Rule {kind: Single, c: ' ', rule_indexes: (i0, i1, i2), rules: None }
+    } else if i2 < 0 {
+        Rule {kind: Double, c: ' ', rule_indexes: (i0, i1, i2), rules: None }
+    } else {
+        Rule {kind: Triple, c: ' ', rule_indexes: (i0, i1, i2), rules: None }
+    }
+}
+
 fn matches_rule(message: &str, rule: &Rule, rules: &HashMap<i32, Rule>) -> Option<usize> {
-//    println!("matches_rule({}, {:?}", message, rule);
+    println!("matches_rule({}, {:?}", message, rule);
     return match rule.kind {
         Char => {
             if message.len() > 0 && message.chars().next().unwrap() == rule.c {
-//                println!("Message {} matches {:?}!", message, rule);
+                println!("Message {} matches {:?}!", message, rule);
                 Some(1)
             } else {
-//                println!("Message {} doesn't match {:?}.", message, rule);
+                println!("Message {} doesn't match {:?}.", message, rule);
                 None
             }
         }
-        Single => { matches_rule(message, &rules[&rule.first.0], rules) }
+        Single => { matches_rule(message, &rules[&rule.rule_indexes.0], rules) }
         Double => {
 //            println!("Message {} {:?}", message, rule);
-            match matches_rule(message, &rules[&rule.first.0], rules) {
+            match matches_rule(message, &rules[&rule.rule_indexes.0], rules) {
                 None => { None }
                 Some(index) => {
 //                    println!("Message {} first {} chars matched rule {}", message, index, rule.first.0);
                     match matches_rule(&message[index..],
-                                       &rules[&rule.first.1], rules) {
+                                       &rules[&rule.rule_indexes.1], rules) {
                         None => { None }
                         Some(end_index) => {
 //                            println!("Message {} first {} chars matched rule {}", message, end_index, rule.first.1);
@@ -137,27 +141,27 @@ fn matches_rule(message: &str, rule: &Rule, rules: &HashMap<i32, Rule>) -> Optio
             }
         }
         Triple => {
-            match matches_rule(message, &rules[&rule.first.0], rules) {
+            match matches_rule(message, &rules[&rule.rule_indexes.0], rules) {
                 None => { None }
                 Some(index) => {
-//                    println!("Message {} first {} chars matched rule {}", message, index, rule.first.0);
+                    println!("Message {} first {} chars matched rule {}", message, index, rule.rule_indexes.0);
                     match matches_rule(&message[index..],
-                                       &rules[&rule.first.1], rules) {
+                                       &rules[&rule.rule_indexes.1], rules) {
                         None => { None }
                         Some(index2) => {
                             let sum = index + index2;
-//                            println!("Message {} {} more chars matched rule {}", message, index2, rule.first.1);
+                            println!("Message {} {} more chars matched rule {}", message, index2, rule.rule_indexes.1);
                             match matches_rule(&message[sum..],
-                                               &rules[&rule.second.0], rules) {
+                                               &rules[&rule.rule_indexes.2], rules) {
                                 None => { None }
                                 Some(index3) => {
                                     let sum = sum + index3;
-//                             println!("Message {} {} chars matched rule {}", message, index3, rule.first.1);
+                                    println!("Message {} {} chars matched rule {}", message, index3, rule.rule_indexes.2);
                                     if sum == message.len() {
-//                                println!("Message {} matched Double rule {:?}", message, rule);
+                                        println!("Message {} matched Triple rule {:?}", message, rule);
                                         Some(sum)
                                     } else {
-//                                println!("Message {} didn't match. {} + {} != {}", message, index, end_index, message.len());
+                                        println!("Message {} didn't match. {} + {} + {} != {}", message, index, index2, index3, message.len());
                                         None
                                     }
                                 }
@@ -167,24 +171,16 @@ fn matches_rule(message: &str, rule: &Rule, rules: &HashMap<i32, Rule>) -> Optio
                 }
             }
         }
-        TwoSingles => {
-            match matches_rule(message, &rules[&rule.first.0], rules) {
-                Some(index) => {
-                        return Some(index)
-                }
-                None => {}
-            }
-            matches_rule(message, &rules[&rule.second.0], rules)
-        }
-        TwoDoubles => {
-            let rule1 = Rule { kind: Double, c: ' ', first: rule.first, second: (-1, -1) };
+        TwoRules => {
+            let rule_pair = rule.rules.unwrap();
+            let rule1 = make_index_rule(rule_pair.0.0,rule_pair.0.1,rule_pair.0.2);
             match matches_rule(message, &rule1, rules) {
                 Some(index) => {
                     return Some(index)
                 }
                 None => {}
             }
-            let rule2 = Rule { kind: Double, c: ' ', first: rule.second, second: (-1, -1) };
+            let rule2 = make_index_rule(rule_pair.1.0,rule_pair.1.1,rule_pair.1.2);
             matches_rule(message, &rule2, rules)
         }
     }
