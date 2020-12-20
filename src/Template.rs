@@ -1,7 +1,7 @@
 use std::fs;
 
-pub fn day10() {
-    let contents = fs::read_to_string("Input/Day10.txt").expect("Couldn't read the file");
+pub fn day20() {
+    let contents = fs::read_to_string("Input/Day20.txt").expect("Couldn't read the file");
 
     let mut part1 = 0;
     let mut part2 = 0;
