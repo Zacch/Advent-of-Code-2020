@@ -8,6 +8,7 @@ enum RuleType { Char, Single, Double, Triple, TwoRules }
 
 #[derive(Debug, Copy, Clone)]
 struct Rule {
+    nr: i32,
     kind: RuleType,
     c: char,
     rule_indexes: (i32, i32, i32),
@@ -16,8 +17,6 @@ struct Rule {
 
 pub fn day19() {
     let contents = fs::read_to_string("Input/Day19.txt").expect("Couldn't read the file");
-    let mut part1 = 0;
-    let mut part2 = 0;
 
     let mut rules = HashMap::new();
     let mut messages = vec![];
@@ -33,7 +32,7 @@ pub fn day19() {
                             rule = make_index_rule(num, -1, -1);
                         }
                         Err(_) => {
-                            rule = Rule {kind: Char, rule_indexes: (-1, -1, -1), rules: None,
+                            rule = Rule {nr, kind: Char, rule_indexes: (-1, -1, -1), rules: None,
                                 c: words[1].trim_start_matches("\"").chars().next().unwrap()};
                         }
                     }
@@ -41,7 +40,7 @@ pub fn day19() {
                 3 => { rule = make_index_rule(i32::from_str(words[1]).unwrap(), i32::from_str(words[2]).unwrap(), -1); }
                 4 => {
                     if words[2] == "|" {
-                        rule = Rule {kind: TwoRules, c: ' ', rule_indexes: (-1, -1, -1), rules:
+                        rule = Rule {nr, kind: TwoRules, c: ' ', rule_indexes: (-1, -1, -1), rules:
                             Some(((i32::from_str(words[1]).unwrap(), -1, -1), (i32::from_str(words[3]).unwrap(), -1, -1)))};
                     } else {
                         rule = make_index_rule(i32::from_str(words[1]).unwrap(), i32::from_str(words[2]).unwrap(),
@@ -49,19 +48,21 @@ pub fn day19() {
                     }
                 }
                 6 => {
-                    rule = Rule {kind: TwoRules, c: ' ', rule_indexes: (-1, -1, -1),
+                    rule = Rule {nr, kind: TwoRules, c: ' ', rule_indexes: (-1, -1, -1),
                         rules: Some(((i32::from_str(words[1]).unwrap(), i32::from_str(words[2]).unwrap(), -1),
                                      (i32::from_str(words[4]).unwrap(), i32::from_str(words[5]).unwrap(), -1)))};
                 }
                 _ => panic!("unrecognized rule {}", line)
             }
             rules.insert(nr, rule);
-//            println!("Rule {} {:?}", nr, rule);
         } else {
-            messages.push(words[0]);
+            if line.len() > 0 {
+                messages.push(words[0]);
+            }
         }
     }
 
+    // let mut part1 = 0;
     // for message in &messages {
     //     match matches_rule(*message, &rules[&0], &rules) {
     //         None => {}
@@ -72,13 +73,14 @@ pub fn day19() {
     //         }
     //     }
     // }
-    println!("Part 1: {}", part1);
+    // println!("Part 1: {}", part1);
 
     rules.remove(&8);
-    rules.insert(8, Rule {kind: RuleType::TwoRules, c: ' ', rule_indexes: (-1, -1, -1), rules: Some(((42, -1, -1), (42, 8, -1)))});
+    rules.insert(8, Rule {nr: 8, kind: RuleType::TwoRules, c: ' ', rule_indexes: (-1, -1, -1), rules: Some(((42, -1, -1), (42, 8, -1)))});
     rules.remove(&11);
-    rules.insert(11, Rule {kind: RuleType::TwoRules, c: ' ', rule_indexes: (-1, -1, -1), rules: Some(((42, 31, -1), (42, 11, 31)))});
+    rules.insert(11, Rule {nr: 11, kind: RuleType::TwoRules, c: ' ', rule_indexes: (-1, -1, -1), rules: Some(((42, 31, -1), (42, 11, 31)))});
 
+    let mut part2 = 0;
     for message in &messages {
         match matches_rule(message, &rules[&0], &rules) {
             None => {}
@@ -89,22 +91,21 @@ pub fn day19() {
             }
         }
     }
-
     println!("Part 2: {}", part2);
 
-    for i in 0..50 {
-        if rules.contains_key(&i) { println!("{}: {:?}", i, rules[&i])}
-    }
+    // for i in 0..50 {
+    //     if rules.contains_key(&i) { println!("Rule {}: {:?}", i, rules[&i])}
+    // }
 }
 // 134 is too low
 
 fn make_index_rule(i0: i32, i1: i32, i2: i32) -> Rule {
     if i1 < 0 {
-        Rule {kind: Single, c: ' ', rule_indexes: (i0, i1, i2), rules: None }
+        Rule {nr: -1, kind: Single, c: ' ', rule_indexes: (i0, i1, i2), rules: None }
     } else if i2 < 0 {
-        Rule {kind: Double, c: ' ', rule_indexes: (i0, i1, i2), rules: None }
+        Rule {nr: -2, kind: Double, c: ' ', rule_indexes: (i0, i1, i2), rules: None }
     } else {
-        Rule {kind: Triple, c: ' ', rule_indexes: (i0, i1, i2), rules: None }
+        Rule {nr: -3, kind: Triple, c: ' ', rule_indexes: (i0, i1, i2), rules: None }
     }
 }
 
