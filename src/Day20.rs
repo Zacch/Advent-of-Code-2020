@@ -1,9 +1,7 @@
-use std::fs;
-use std::str::FromStr;
-use std::iter::FromIterator;
-use std::collections::{HashMap, HashSet};
 use std::cmp::Ordering;
-use std::panic::resume_unwind;
+use std::fs;
+use std::iter::FromIterator;
+use std::str::FromStr;
 
 #[derive(Debug,Eq, Clone)]
 struct Tile {
@@ -71,77 +69,78 @@ pub fn day20() {
     }
 
     let corners: Vec<&Tile> = tiles.iter().filter(|t| t.connecting_tiles.len() == 2).collect();
-    let mut part1:i64 = corners.iter().fold(1, |i, t| i * (t.number as i64));
+    let part1:i64 = corners.iter().fold(1, |i, t| i * (t.number as i64));
     println!("Part 1: {}", part1);
 
 
-   //  for tile in &tiles {
-   //      println!("Tile {}: edges {:?}, connections {:?}", tile.number, tile.edges, tile.connecting_tiles);
-   //  }
-   //  println!();
-    let flipped_tiles = tiles; // same_side_up(&tiles);
+    let mut image = assemble_image(&tiles);
 
-    for tile in &flipped_tiles {
-        println!("Tile {}: edges {:?}, connections {:?}", tile.number, tile.edges, tile.connecting_tiles);
-    }
-    println!();
-
-    let sorted_tiles = assemble_image(&flipped_tiles);
-
-    print_image(&sorted_tiles);
-
-    // print(&sorted_tiles[0]);
-    // print(&rotate(&sorted_tiles[0]));
-    // let mut part2 = 0;
-    // part2 += 0;
-    // println!("Part 2: {}", part2);
-}
-
-fn print(tile: &Tile) {
-    println!("Tile {}: edges {:?}, connections {:?}", tile.number, tile.edges, tile.connecting_tiles);
-    for row in &tile.grid {
-        for square in row {
-            print!(" {}", square);
+    for _ in 0..4 {
+        let monsters = count_monsters(&mut image);
+        if monsters > 0 {
+            // println!("Found {} monsters!", monsters);
+            // for line in &image {
+            //     println!("{}", String::from_iter(line.clone()));
+            // }
+            println!("Part 2: {}", count_waves(&image));
         }
-        println!();
+        image = rotate_image(&image);
+    }
+
+    image.reverse();
+    for _ in 0..4 {
+        let monsters = count_monsters(&mut image);
+        if monsters > 0 {
+            // println!("Found {} monsters!", monsters);
+            // for line in &image {
+            //     println!("{}", String::from_iter(line.clone()));
+            // }
+            println!("Part 2: {}", count_waves(&image));
+        }
+        image = rotate_image(&image);
     }
 }
 
-fn same_side_up(tiles: &Vec<Tile>) -> Vec<Tile> {
-    let mut flipped_tiles: Vec<Tile> = vec![tiles[0].clone()];
+fn count_waves(image: &Vec<Vec<char>>) -> usize {
+    let mut result = 0;
+    for line in image {
+        result += line.iter().filter(|c|**c=='#').count();
+    }
+    result
+}
 
-    let mut frontier: Vec<usize> = vec![];
-    frontier.push(0);
-    let mut reached = HashSet::new();
-    reached.insert(0 as usize);
-    while !frontier.is_empty() {
-        let mut current = frontier.remove(0);
-        let current_number = tiles[current].number;
-        println!("Current: {}", current_number);
-        let current_flipped = flipped_tiles.iter().find(|t|t.number == current_number).unwrap().clone();
-        for next in &tiles[current].connecting_tiles {
-            if reached.contains(&next) { continue }
-            let mut flip_tile = false;
-            for edge in 0..4 {
-                if tiles[*next].edges[4..8].contains(&current_flipped.edges[edge]) {
-                    flip_tile = true;
-                    break;
+//   01234567890123456789
+// 0                   #
+// 1 #    ##    ##    ###
+// 2  #  #  #  #  #  #
+const MONSTER_WIDTH: usize = 20;
+const MONSTER_HEIGHT: usize = 3;
+fn count_monsters(image: &mut Vec<Vec<char>>) -> i32 {
+    let monster_pixels: Vec<(usize, usize)> =
+        vec![(18, 0),
+             (0,1), (5,1), (6,1), (11,1), (12,1), (17,1), (18,1), (19,1),
+             (1,2), (4,2), (7,2), (10,2), (13,2), (16,2)];
+    let mut result = 0;
+    for x in 0..image.len() - MONSTER_WIDTH {
+        for y in 0..image.len() - MONSTER_HEIGHT {
+            let mut monster = true;
+            for pixel in &monster_pixels {
+                if image[y + pixel.1][x + pixel.0] == '.' {
+                    monster = false;
                 }
             }
-            flipped_tiles.push(
-                if flip_tile { flip(&tiles[*next]) } else {
-                    println!("Storing {}", tiles[*next].number);
-                    tiles[*next].clone() }
-            );
-            frontier.push(*next);
-            reached.insert(*next);
+            if monster {
+                result += 1;
+                for pixel in &monster_pixels {
+                    image[y + pixel.1][x + pixel.0] = 'O';
+                }
+            }
         }
     }
-    flipped_tiles.sort();
-    flipped_tiles
+    result
 }
 
-fn assemble_image(tiles: &Vec<Tile>) -> Vec<Tile> {
+fn assemble_image(tiles: &Vec<Tile>) -> Vec<Vec<char>> {
     let tile_columns = (tiles.len() as f32) as usize;
 
     let mut reached: Vec<Tile> = vec![tiles[0].clone()];
@@ -149,14 +148,12 @@ fn assemble_image(tiles: &Vec<Tile>) -> Vec<Tile> {
     let mut frontier: Vec<Tile> = vec![reached[0].clone()];
 
     while !frontier.is_empty() {
-        let mut current = frontier.remove(0);
-        println!("current is {} at position {:?}", current.number, current.position);
+        let current = frontier.remove(0);
 
         for next_index in &current.connecting_tiles {
             let mut next = tiles[*next_index].clone();
             if reached.contains(&next) { continue; }
             let rotated_next = rotate_and_move(&mut next, &current);
-            println!("rotated_next is {} at position {:?}", rotated_next.number, rotated_next.position);
             frontier.push(rotated_next.clone());
             reached.push(rotated_next);
         }
@@ -164,9 +161,10 @@ fn assemble_image(tiles: &Vec<Tile>) -> Vec<Tile> {
 
     reached.sort_by(|a, b|
         (a.position.1 * 100 + a.position.0).cmp(&(b.position.1 * 100 + b.position.0)));
-    reached
-}
+    // print_tiled_image(&reached);
 
+    render_image(&reached)
+}
 
 fn rotate_and_move(next: &mut Tile, current: &Tile) -> Tile {
     let mut result = next.clone();
@@ -244,37 +242,31 @@ fn rotate_and_move(next: &mut Tile, current: &Tile) -> Tile {
         }
         _ => { panic!(); }
     }
-
-    // println!("Current {}, edge {} matches {}, edge {} -> rotate {} times ",
-    //          current.number, current_edge, next.number, next_edge, (next_edge + 6 - current_edge).rem_euclid(4));
     result
 }
-/* Orientations
- Normal     Flipped
-  0            4
-3   1        7   5
-  2            6
-
- */
 
 fn rotate(tile: &Tile) -> Tile {
-    println!("Rotating {}", tile.number);
-    let size = tile.grid.len();
     let mut result = tile.clone();
-    for y in 0..size {
-        for x in 0..size {
-            result.grid[y][size - 1 - x] = tile.grid[x][y];
-        }
-    }
+    result.grid = rotate_image(&tile.grid);
     let e = &tile.edges;
     result.edges = vec![e[3], e[0], e[1], e[2],
                         e[7], e[4], e[5], e[6]];
-
     result
 }
 
+fn rotate_image(image: &Vec<Vec<char>>) -> Vec<Vec<char>>{
+    let size = image.len();
+    let mut result = image.clone();
+    for y in 0..size {
+        for x in 0..size {
+            result[y][size - 1 - x] = image[x][y];
+        }
+    }
+    result
+}
+
+
 fn flip(tile: &Tile) -> Tile {
-    println!("Flipping {}", tile.number);
     let mut result = tile.clone();
     result.grid.reverse();
     let e = &tile.edges;
@@ -283,6 +275,12 @@ fn flip(tile: &Tile) -> Tile {
     result
 }
 
+/* Edges (going clockwise)
+ Normal     Flipped
+  0            4
+3   1        7   5
+  2            6
+ */
 
 fn calculate_edges(grid: &Vec<Vec<char>>) -> Vec<i32> {
     let mut left = vec![];
@@ -314,19 +312,19 @@ fn encode_reverse_edge(edge: &Vec<char>) -> i32 {
     encode_edge(&flipped)
 }
 
-
-fn print_image(tiles: &Vec<Tile>) {
+#[allow(dead_code)]
+fn print_tiled_image(tiles: &Vec<Tile>) {
     let tile_columns = (tiles.len() as f32).sqrt() as usize;
 
     for row in 0..tile_columns {
         for line in 0..10 {
             for tile_column in 0..tile_columns {
                 for i in 0..10 { print!(" {}", tiles[row * tile_columns + tile_column].grid[line][i]); }
-                print!("|");
+                print!("  ");
             }
             println!();
         }
-        println!("---------------------------------------------------------------");
+        println!();
     }
     for row in 0..tile_columns {
         for tile_column in 0..tile_columns {
@@ -334,4 +332,23 @@ fn print_image(tiles: &Vec<Tile>) {
         }
         println!();
     }
+}
+
+fn render_image(tiles: &Vec<Tile>) -> Vec<Vec<char>> {
+    let mut result: Vec<Vec<char>> = vec![];
+
+    let tile_columns = (tiles.len() as f32).sqrt() as usize;
+
+    for row in 0..tile_columns {
+        for line in 1..9 {
+            let mut result_line: Vec<char> = vec![];
+            for tile_column in 0..tile_columns {
+                for i in 1..9 {
+                    result_line.push(tiles[row * tile_columns + tile_column].grid[line][i]);
+                }
+            }
+            result.push(result_line);
+        }
+    }
+    result
 }
