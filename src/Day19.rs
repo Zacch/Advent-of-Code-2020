@@ -65,17 +65,18 @@ pub fn day19() {
         }
     }
 
-    // let mut part1 = 0;
-    // for message in &messages {
-    //     match matches_rule(*message, &rules[&0], &rules, 0) {
-    //         None => {}
-    //         Some(length) => {
-    //             if length == message.len() {
-    //                 part1 += 1;
-    //             }
-    //         }
-    //     }
-    // }
+    let mut part1 = 0;
+    for message in &messages {
+        match matches_rule(*message, &rules[&0], &rules, 0) {
+            None => {}
+            Some(lengths) => {
+                if lengths.contains(&message.len()) {
+                    part1 += 1;
+                }
+            }
+        }
+    }
+    println!("Part 1: {}", part1);
 
     rules.remove(&8);
     rules.insert(8, Rule {nr: 8, kind: RuleType::TwoRules, c: ' ', rule_indexes: (-1, -1, -1),
@@ -88,22 +89,15 @@ pub fn day19() {
     for message in &messages {
         match matches_rule(message, &rules[&0], &rules, 0) {
             None => {}
-            Some(length) => {
-                if length == message.len() {
+            Some(lengths) => {
+                if lengths.contains(&message.len()) {
                     part2 += 1;
                 }
             }
         }
     }
-   // println!("Part 1: {}", part1);
     println!("Part 2: {}", part2);
-
-    // for i in 0..50 {
-    //     if rules.contains_key(&i) { println!("Rule {}: {:?}", i, rules[&i])}
-    // }
 }
-// 134 is too low
-// 235 is too high
 
 fn make_index_rule(nr: i32, i0: i32, i1: i32, i2: i32) -> Rule {
     if i1 < 0 {
@@ -115,17 +109,13 @@ fn make_index_rule(nr: i32, i0: i32, i1: i32, i2: i32) -> Rule {
     }
 }
 
-fn matches_rule(message: &str, rule: &Rule, rules: &HashMap<i32, Rule>, level: i32) -> Option<usize> {
-    let indent = " ".repeat(level as usize);
-    println!("{}matches_rule({}, {:?})", indent, message, rule);
+fn matches_rule(message: &str, rule: &Rule, rules: &HashMap<i32, Rule>, level: i32) -> Option<Vec<usize>> {
     if message.is_empty() { return None; }
     return match rule.kind {
         Char => {
             if message.len() > 0 && message.chars().next().unwrap() == rule.c {
-                println!("{}-- Yes", indent);
-                Some(1)
+                Some(vec![1])
             } else {
-                println!("{}-- No", indent);
                 None
             }
         }
@@ -133,15 +123,22 @@ fn matches_rule(message: &str, rule: &Rule, rules: &HashMap<i32, Rule>, level: i
         Double => {
             match matches_rule(message, &rules[&rule.rule_indexes.0], rules, level + 1) {
                 None => { None }
-                Some(index) => {
-                    println!("{}Message {} first {} chars matched rule {}", indent, message, index, &rule.rule_indexes.0);
-                    match matches_rule(&message[index..],
-                                       &rules[&rule.rule_indexes.1], rules, level + 1) {
-                        None => { None }
-                        Some(end_index) => {
-                            println!("{}-- Yes Message {} {} chars matched rule {}", indent, message, index + end_index, &rule.nr);
-                                Some(index + end_index)
+                Some(indices) => {
+                    let mut result = vec![];
+                    for index in indices {
+                        match matches_rule(&message[index..], &rules[&rule.rule_indexes.1], rules, level + 1) {
+                            None => {}
+                            Some(indices2) => {
+                                for index2 in indices2 {
+                                    result.push(index + index2);
+                                }
+                            }
                         }
+                    }
+                    if result.is_empty() {
+                        None
+                    } else {
+                        Some(result)
                     }
                 }
             }
@@ -149,40 +146,55 @@ fn matches_rule(message: &str, rule: &Rule, rules: &HashMap<i32, Rule>, level: i
         Triple => {
             match matches_rule(message, &rules[&rule.rule_indexes.0], rules, level + 1) {
                 None => { None }
-                Some(index) => {
-                    println!("{}Message {} first {} chars matched rule {}", indent, message, index, rule.rule_indexes.0);
-                    match matches_rule(&message[index..],
-                                       &rules[&rule.rule_indexes.1], rules, level + 1) {
-                        None => { None }
-                        Some(index2) => {
-                            let sum = index + index2;
-                            println!("{}Message {} {} more chars matched rule {}", indent, message, index2, rule.rule_indexes.1);
-                            match matches_rule(&message[sum..],
-                                               &rules[&rule.rule_indexes.2], rules, level + 1) {
-                                None => { None }
-                                Some(index3) => {
-                                    let sum = sum + index3;
-                                    println!("{}Message {} {} chars matched rule {}", indent, message, index3, rule.rule_indexes.2);
-                                        println!("{}-- Yes {} {} chars matched Triple rule {:?}", indent, message, sum, rule);
-                                        Some(sum)
+                Some(indices) => {
+                    let mut result = vec![];
+                    for index in indices {
+                        match matches_rule(&message[index..], &rules[&rule.rule_indexes.1], rules, level + 1) {
+                            None => {}
+                            Some(indices2) => {
+                                for index2 in indices2 {
+                                    match matches_rule(&message[index + index2..], &rules[&rule.rule_indexes.2], rules, level + 1) {
+                                        None => {}
+                                        Some(indices3) => {
+                                            for index3 in indices3 {
+                                                result.push(index + index2 + index3);
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
+                    }
+                    if result.is_empty() {
+                        None
+                    } else {
+                        Some(result)
                     }
                 }
             }
         }
         TwoRules => {
+            let mut result = vec![];
             let rule_pair = rule.rules.unwrap();
             let rule1 = make_index_rule(rule.nr * 1000 + 1,rule_pair.0.0,rule_pair.0.1,rule_pair.0.2);
             match matches_rule(message, &rule1, rules, level + 1) {
-                Some(index) => {
-                    return Some(index)
+                Some(indices) => {
+                    result.append(&mut indices.clone());
                 }
                 None => {}
             }
             let rule2 = make_index_rule(rule.nr * 1000 + 2, rule_pair.1.0,rule_pair.1.1,rule_pair.1.2);
-            matches_rule(message, &rule2, rules, level + 1)
+            match matches_rule(message, &rule2, rules, level + 1) {
+                Some(indices) => {
+                    result.append(&mut indices.clone());
+                }
+                None => {}
+            }
+            if result.is_empty() {
+                None
+            } else {
+                Some(result)
+            }
         }
     }
 }
